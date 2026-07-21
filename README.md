@@ -44,31 +44,6 @@ Run this command from the directory you want to share:
 python -m sharedserver 8080
 ```
 
-The installed console command works as well:
-
-```bash
-sharedserver 8080
-```
-
-SharedServer listens on every network interface by default and prints usable local and LAN addresses:
-
-```text
-SharedServer running:
-
-Local:
-http://127.0.0.1:8080
-
-LAN:
-http://192.168.x.x:8080
-```
-
-Open the LAN address on another device connected to the same trusted network. `0.0.0.0` is a bind address, not a browser destination, so it is intentionally not printed as an access URL. HTTP access logs remain visible in the terminal for debugging.
-
-## Screenshot
-
-Before publishing, save a current screenshot as `docs/screenshot.png` and uncomment the following line:
-
-<!-- ![SharedServer interface](docs/screenshot.png) -->
 
 ## CLI reference
 
@@ -126,15 +101,6 @@ Default image extensions:
 .png .jpg .jpeg .webp
 ```
 
-## Browser compatibility
-
-File browsing and transfer work in current Chrome, Edge, and Safari releases. Modern clipboard APIs are usually restricted to secure contexts such as HTTPS or localhost:
-
-- Text copying falls back to the legacy browser copy command when the modern Clipboard API is unavailable.
-- Image copying requires `ClipboardItem` and may be rejected when the site is opened from a plain HTTP LAN address.
-- Downloads remain available when clipboard access is unavailable.
-- Use a trusted HTTPS reverse proxy when image copying must work across all supported devices.
-
 ## Security model
 
 - Every user-supplied path is resolved with `Path.resolve()` and checked against the shared root.
@@ -171,65 +137,6 @@ Start a development server:
 python -m sharedserver 8080 --directory .
 ```
 
-## Tests
-
-```bash
-pytest
-```
-
-The test suite covers path and symlink safety, filename cleaning, copy allowlists, malformed UTF-8 handling, configuration loading, CLI startup, upload limits, non-overwriting uploads, downloads, and WebSocket synchronization.
-
-## Build and publish
-
-Releases are published from GitHub Actions with PyPI Trusted Publishing. This uses short-lived OpenID Connect credentials, so no PyPI API token needs to be stored in the repository.
-
-### One-time PyPI setup
-
-1. Create the `pypi` environment under **GitHub repository Settings > Environments**. Adding required reviewers is recommended for release approval.
-2. In the PyPI publishing settings, add a pending trusted publisher with these values:
-
-   | Field | Value |
-   | --- | --- |
-   | PyPI project name | `sharedserver` |
-   | GitHub owner | `NihaoKangkang` |
-   | GitHub repository | `sharedserver` |
-   | Workflow filename | `publish.yml` |
-   | Environment name | `pypi` |
-
-A pending publisher can create the PyPI project during the first release, but it does not reserve the project name before that release is published.
-
-### Publish a release
-
-1. Update the version in both `src/sharedserver/__init__.py` and `pyproject.toml`. PyPI does not allow an existing release file or version to be replaced.
-2. Run the release checks locally:
-
-   ```bash
-   pytest
-   python -m build
-   python -m twine check dist/*
-   ```
-
-3. Commit and push the version change.
-4. Create and publish a GitHub release whose tag matches the version, such as `v0.1.0`.
-5. The `Publish to PyPI` workflow tests the tagged revision, builds the distributions, checks them, and publishes them to PyPI.
-
-### Optional TestPyPI verification
-
-TestPyPI is a separate service with separate accounts and credentials. It is useful for validating package metadata and installation before a first production release, but it is not required for every release.
-
-Upload a locally built distribution:
-
-```bash
-python -m twine upload --repository testpypi dist/*
-```
-
-Then install it in a clean environment without resolving dependencies from TestPyPI:
-
-```bash
-python -m pip install --index-url https://test.pypi.org/simple/ --no-deps sharedserver
-```
-
-Manual production uploads with `python -m twine upload dist/*` remain possible with a scoped PyPI API token, but Trusted Publishing is the recommended release path. Never store credentials in the repository.
 
 ## License
 
