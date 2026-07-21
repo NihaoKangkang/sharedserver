@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#0d1117">
+  <title>SharedServer</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">S</span>
+      <div>
+        <strong>SharedServer</strong>
+        <span>Local network sharing</span>
+      </div>
+    </div>
+    <div id="connection" class="connection pending" role="status">
+      <span class="status-dot"></span>
+      <span>Connecting</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="panel clipboard-panel" aria-labelledby="clipboard-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Live sync</p>
+          <h1 id="clipboard-title">Shared text clipboard</h1>
+          <p>Type on any device and every connected device updates instantly.</p>
+        </div>
+        <button id="copy-shared" class="button secondary" type="button">Copy text</button>
+      </div>
+      <label class="sr-only" for="shared-text">Shared text</label>
+      <textarea id="shared-text" rows="8" maxlength="1000000" placeholder="Paste or type text here…" disabled></textarea>
+      <div class="textarea-meta"><span id="character-count">0 characters</span><span>Stored in memory only</span></div>
+    </section>
+
+    <section class="panel files-panel" aria-labelledby="files-title">
+      <div class="section-heading files-heading">
+        <div>
+          <p class="eyebrow">Shared directory</p>
+          <h2 id="files-title">File browser</h2>
+        </div>
+        <div class="toolbar">
+          <button id="new-folder" class="button secondary" type="button">New folder</button>
+          <button id="choose-files" class="button primary" type="button">Upload files</button>
+          <input id="file-input" type="file" multiple hidden>
+        </div>
+      </div>
+
+      <nav id="breadcrumbs" class="breadcrumbs" aria-label="Current path"></nav>
+
+      <div id="drop-zone" class="drop-zone">
+        <span>Drop files here to upload</span>
+        <small>Existing files will not be overwritten</small>
+      </div>
+      <div id="upload-list" class="upload-list" aria-live="polite"></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Size</th><th>Modified</th><th><span class="sr-only">Actions</span></th></tr>
+          </thead>
+          <tbody id="file-list"></tbody>
+        </table>
+        <div id="empty-state" class="empty-state" hidden>This folder is empty</div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="folder-dialog">
+    <form id="folder-form" method="dialog">
+      <h2>New folder</h2>
+      <label for="folder-name">Folder name</label>
+      <input id="folder-name" name="name" maxlength="255" autocomplete="off" required>
+      <div class="dialog-actions">
+        <button class="button secondary" value="cancel" type="button" id="cancel-folder">Cancel</button>
+        <button class="button primary" value="create" type="submit">Create</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -1,0 +1,32 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+
+share:
+  directory: ./
+  max_upload_size: 1073741824  # bytes, default 1 GiB
+
+clipboard:
+  max_text_size: 2097152       # bytes, default 2 MiB
+  text_extensions:
+    - .txt
+    - .md
+    - .json
+    - .xml
+    - .yaml
+    - .yml
+    - .csv
+    - .log
+    - .py
+    - .js
+    - .html
+    - .css
+    - .java
+    - .c
+    - .cpp
+  image_extensions:
+    - .png
+    - .jpg
+    - .jpeg
+    - .webp
+

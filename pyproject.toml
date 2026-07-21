@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sharedserver"
+version = "0.1.0"
+description = "Zero-configuration LAN file sharing and real-time text clipboard"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "NihaoKangkang" }]
+keywords = ["file-sharing", "clipboard", "lan", "fastapi", "websocket"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Web Environment",
+  "Framework :: FastAPI",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "PyYAML>=6,<7",
+  "uvicorn>=0.30,<1",
+  "websockets>=13,<17",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2,<2",
+  "httpx2>=2,<3",
+  "pytest>=8,<9",
+  "twine>=5,<7",
+]
+
+[project.scripts]
+sharedserver = "sharedserver.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/NihaoKangkang/sharedserver"
+Repository = "https://github.com/NihaoKangkang/sharedserver"
+Issues = "https://github.com/NihaoKangkang/sharedserver/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+sharedserver = ["templates/*.html", "static/*.css", "static/*.js"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
