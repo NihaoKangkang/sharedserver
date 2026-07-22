@@ -1,5 +1,7 @@
 # SharedServer
 
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/sharedserver?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/sharedserver)
+
 SharedServer is a zero-configuration, login-free LAN file server and real-time text clipboard. It is as easy to start as `python -m http.server`, while adding uploads, directory browsing, live text synchronization, and allowlisted clipboard actions.
 
 > SharedServer has no authentication. Run it only on a trusted home, lab, or development network. Never expose it directly to the public internet.
