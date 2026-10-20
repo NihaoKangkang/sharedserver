@@ -4,8 +4,6 @@
 
 Share files and text between devices on the same Wi-Fi. No accounts, no login, no cloud.
 
-**Development preview:** this checkout targets **0.2.0**. Until that release is published, PyPI's 0.1.0 does not include QR codes, private links, or read-only mode. To try this checkout now, run `python -m pip install .` from the repository folder, then `sharedserver`.
-
 ```bash
 python -m pip install sharedserver
 sharedserver
@@ -19,7 +17,7 @@ Run from a dedicated transfer folder, scan the terminal QR code, and open the pa
 
 ![Two browser sessions sharing text and uploading a file](https://raw.githubusercontent.com/NihaoKangkang/sharedserver/main/docs/assets/demo.gif)
 
-*12-second demo with a desktop browser and a mobile-sized browser session using a LAN HTTP address. Paste text on one device, copy it on the other, then upload an image back. The terminal preview uses an example address. Images become available at these URLs when merged into `main`.*
+*12-second demo with a desktop browser and a mobile-sized browser session using a LAN HTTP address. Paste text on one device, copy it on the other, then upload an image back. The terminal preview uses an example address.*
 
 ## Three things, one command
 
