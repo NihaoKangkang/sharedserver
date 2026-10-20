@@ -9,8 +9,6 @@
 
 **扫码跨设备传文件、在网页间共享图文，也能从无图形界面的终端传输。默认无需登录。**
 
-> **0.3.0 源码预览：**本页新增功能在 0.3.0 正式发布前，需要在当前仓库执行 `python -m pip install .` 安装体验。`uvx`、`pipx run` 和普通 PyPI 安装使用的是已发布版本。
-
 ## 快速启动
 
 在可信 Wi-Fi 下，进入一个**专用传输文件夹**，运行：
@@ -93,7 +91,7 @@ PIN 每个客户端地址每分钟最多允许五次失败尝试，跟踪记录�
 ```bash
 python -m pip install 'sharedserver[https]'
 sharedserver --https --token
-# 本版本发布后也可这样临时运行：
+# 临时运行并启用 HTTPS 支持：
 uvx --from 'sharedserver[https]' sharedserver --https
 ```
 

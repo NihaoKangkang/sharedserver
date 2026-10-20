@@ -9,8 +9,6 @@
 
 **Scan to move files, share text and images between browsers, or transfer from a headless terminal. No login by default.**
 
-> **v0.3.0 source preview:** the new options below require this checkout until 0.3.0 is published. Install this repository with `python -m pip install .` to try them. `uvx`, `pipx run`, and ordinary PyPI installs use the published version.
-
 ## Start in seconds
 
 Run inside a **dedicated transfer folder** on trusted Wi-Fi:
@@ -93,7 +91,7 @@ For secrets that should not appear in process arguments, use **`SHAREDSERVER_AUT
 ```bash
 python -m pip install 'sharedserver[https]'
 sharedserver --https --token
-# Once this version is published:
+# Run temporarily with HTTPS support:
 uvx --from 'sharedserver[https]' sharedserver --https
 ```
 
