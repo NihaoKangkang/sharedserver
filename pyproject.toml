@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sharedserver"
-version = "0.2.0"
+version = "0.3.0"
 description = "Zero-configuration LAN file sharing and real-time text clipboard"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,6 +26,8 @@ classifiers = [
 ]
 dependencies = [
   "fastapi>=0.115,<1",
+  "starlette>=0.49.1,<2",
+  "ifaddr>=0.2,<1",
   "PyYAML>=6,<7",
   "qrcode>=8,<9",
   "uvicorn>=0.30,<1",
@@ -33,6 +35,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+https = ["cryptography>=43,<52"]
 dev = [
   "build>=1.2,<2",
   "httpx2>=2,<3",

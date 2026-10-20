@@ -6,8 +6,8 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#0d1117">
   <title>SharedServer</title>
-  <link rel="stylesheet" href="/static/app.css">
-  <script src="/static/app.js" defer></script>
+  <link rel="stylesheet" href="./static/app.css">
+  <script src="./static/app.js" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -38,7 +38,14 @@
       <textarea id="shared-text" rows="8" placeholder="Paste or type text here…" disabled></textarea>
       <div class="textarea-meta"><span id="character-count">0 bytes</span><span id="text-limit">Stored in memory only</span></div>
       <button id="send-draft" class="button secondary" type="button" hidden>Send preserved draft</button>
+      <button id="submit-text" class="button primary" type="button" hidden>Submit text</button>
       <p id="clipboard-help" class="helper-text">Text only. Your system clipboard is never read automatically.</p>
+      <div id="shared-image" class="shared-image" hidden>
+        <p class="helper-text">Latest shared image · click to preview</p>
+        <button id="view-shared-image" type="button" aria-label="Preview shared image">
+          <img id="shared-image-preview" alt="Latest shared image">
+        </button>
+      </div>
     </section>
 
     <section class="panel files-panel" aria-labelledby="files-title">
@@ -56,6 +63,10 @@
       </div>
 
       <nav id="breadcrumbs" class="breadcrumbs" aria-label="Current path"></nav>
+      <div id="selection-toolbar" class="selection-toolbar">
+        <label><input id="select-all" type="checkbox"> Select files</label>
+        <button id="download-zip" class="button secondary" type="button" disabled>Download ZIP (0)</button>
+      </div>
 
       <div id="drop-zone" class="drop-zone">
         <span>Drop files here to upload</span>
@@ -63,7 +74,7 @@
       </div>
       <div id="upload-list" class="upload-list" aria-live="polite"></div>
 
-      <div class="table-wrap">
+      <div id="file-table" class="table-wrap">
         <table>
           <thead>
             <tr><th>Name</th><th>Size</th><th>Modified</th><th><span class="sr-only">Actions</span></th></tr>
@@ -88,5 +99,17 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="page-drop-overlay" class="page-drop-overlay" hidden>Drop files anywhere to upload</div>
+  <dialog id="image-dialog">
+    <div class="image-dialog-content">
+      <h2 id="image-title">Image preview</h2>
+      <p>Right-click or long-press the image to copy or save it.</p>
+      <img id="image-preview" alt="Shared image preview">
+      <div class="dialog-actions">
+        <a id="image-download" class="button secondary download-link">Download</a>
+        <button id="close-image" class="button primary" type="button">Close</button>
+      </div>
+    </div>
+  </dialog>
 </body>
 </html>

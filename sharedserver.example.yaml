@@ -1,10 +1,13 @@
 server:
   host: 0.0.0.0
   port: 8080
+  https: false               # optional self-signed TLS
 
 share:
   directory: ./
   max_upload_size: 1073741824  # bytes, default 1 GiB
+  mode: full                 # full | readonly | droponly
+  rename_on_conflict: false   # append a number instead of HTTP 409
   read_only: false            # downloads and text sync; no file writes when true
 
 clipboard:
@@ -35,3 +38,10 @@ clipboard:
 # Optional private link. Prefer SHAREDSERVER_TOKEN over storing a secret here.
 # security:
 #   token: replace-with-a-long-random-token
+
+# Optional alternatives (do not combine token and PIN):
+# security:
+#   auth: "username:password"  # prefer SHAREDSERVER_AUTH
+#   pin: "123456"             # keep numeric PINs quoted
+#   random_path: "replace-with-a-long-random-url-safe-secret"
+# max_upload_size: 0 inside share means unlimited; the default stays 1 GiB.

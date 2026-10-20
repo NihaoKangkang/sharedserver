@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 import hmac
+import base64
+import binascii
+from collections import OrderedDict
 import ipaddress
 import secrets
 import socket
+import time
 from urllib.parse import urlsplit
 
 from starlette.requests import HTTPConnection
@@ -33,6 +37,11 @@ def same_origin(connection: HTTPConnection) -> bool:
 class AccessPolicy:
     def __init__(self, config: AppConfig):
         self.token = config.security.token
+        self.auth = config.security.auth
+        self.pin = config.security.pin
+        self.prefix = f"/s/{config.security.random_path}" if config.security.random_path else ""
+        self.protected = bool(self.token or self.pin or self.auth)
+        self.failures: OrderedDict[str, tuple[float, int]] = OrderedDict()
         self.session = secrets.token_urlsafe(32)
         self.cookie_name = f"sharedserver_{config.server.port}"
         hostname = socket.gethostname().casefold()
@@ -59,17 +68,51 @@ class AccessPolicy:
             return False
 
     def valid_token(self, supplied: str) -> bool:
-        return bool(self.token) and hmac.compare_digest(
-            supplied.encode("utf-8"), self.token.encode("utf-8")
+        secret = self.token or self.pin
+        return bool(secret) and hmac.compare_digest(
+            supplied.encode("utf-8"), secret.encode("utf-8")
         )
 
-    def authorized(self, connection: HTTPConnection) -> bool:
-        if self.token is None:
+    def valid_cookie(self, connection: HTTPConnection) -> bool:
+        return hmac.compare_digest(connection.cookies.get(self.cookie_name, "").encode("utf-8"),
+                                   self.session.encode("ascii"))
+
+    def valid_basic(self, connection: HTTPConnection) -> bool:
+        if self.auth is None:
             return True
-        cookie = connection.cookies.get(self.cookie_name, "")
-        if hmac.compare_digest(cookie.encode("utf-8"), self.session.encode("ascii")):
+        authorization = connection.headers.get("authorization", "")
+        scheme, _, credentials = authorization.partition(" ")
+        try:
+            decoded = base64.b64decode(credentials, validate=True)
+            return scheme.casefold() == "basic" and hmac.compare_digest(decoded, self.auth.encode("utf-8"))
+        except (ValueError, binascii.Error):
+            return False
+
+    def pin_throttled(self, connection: HTTPConnection, *, failed: bool = False) -> bool:
+        if self.pin is None:
+            return False
+        host = connection.client.host if connection.client else "unknown"
+        now = time.monotonic()
+        start, count = self.failures.get(host, (now, 0))
+        if now - start >= 60:
+            start, count = now, 0
+        if failed:
+            self.failures[host] = (start, count + 1)
+            self.failures.move_to_end(host)
+            if len(self.failures) > 1024:
+                self.failures.popitem(last=False)
+        return count >= 5
+
+    def authorized(self, connection: HTTPConnection) -> bool:
+        if not self.protected:
+            return True
+        if self.valid_cookie(connection):
+            return True
+        if self.pin_throttled(connection) or not self.valid_basic(connection):
+            return False
+        if self.token is None and self.pin is None:
             return True
         authorization = connection.headers.get("authorization", "")
         return (
             authorization.startswith("Bearer ") and self.valid_token(authorization[7:])
-        ) or self.valid_token(connection.query_params.get("token", ""))
+        ) or self.valid_token(connection.query_params.get("pin" if self.pin else "token", ""))

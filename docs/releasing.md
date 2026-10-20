@@ -1,27 +1,25 @@
-# Release checklist for 0.2.0
+# Release runbook — next version 0.3.0
 
-The changes in this branch are a development preview. They have not been published to PyPI.
+Version 0.2.0 is already [published](https://pypi.org/project/sharedserver/0.2.0/). Version 0.3.0 is a source preview. The current task authorizes review and GitHub merge, not a new PyPI publication.
 
-1. Merge the reviewed changes after CI is green. CI covers Python 3.10–3.14 on Linux, macOS, and Windows, plus a Chromium browser smoke test. Local checks cover Python 3.12 and 3.15 and Chromium over both localhost and a LAN HTTP IP; this is not a physical iOS / Android test.
-2. Confirm the README images at `raw.githubusercontent.com/NihaoKangkang/sharedserver/main/docs/assets/` load publicly after merge. Images use absolute URLs for PyPI. The source SVG and rendered PNG are included.
-3. Test on a physical phone on the same Wi-Fi: scan the terminal QR code, copy text in both directions, upload a photo, and download it. Repeat with `--token` and check the URL is cleaned. Try `--read-only` and confirm file writes are unavailable.
-4. Configure the PyPI trusted publisher for this repository's `publish.yml` workflow and the `pypi` GitHub environment. No API token needs to be committed.
-5. Remove the development-preview paragraph and preview-only image-availability sentence from the README. Verify `pyproject.toml` and `sharedserver.__version__` both say `0.2.0`.
-6. Run `python -m pytest`, `python -m build`, and `python -m twine check dist/*`. Install the wheel in a clean environment and check the packaged web UI. Verify the source distribution includes demo assets and scripts.
-7. Publish a GitHub Release tagged `v0.2.0`. The existing release workflow verifies the version tag, tests, builds, and publishes using Trusted Publishing. Do not publish a version that already exists on PyPI.
-8. From another clean environment, install `sharedserver==0.2.0` from PyPI. Check `sharedserver --version`, `--token`, `--read-only`, and `--qr`. Inspect PyPI's README images.
-9. Only then use the community drafts in `promotion-review.md`. Recheck the current community rules and disclose authorship. Do not describe this tool as automatic OS clipboard synchronization.
+1. Read `vnext-implementation.md` and `vnext-review.md`. Resolve blocking review findings and wait for the final PR head's CI. CI covers Python 3.10–3.14 on Linux/macOS/Windows, the optional TLS extra, two Chromium suites, builds and installed assets.
+2. After merge, confirm the absolute README image and bilingual-document links load publicly. A Twine check does not test image URLs.
+3. Before promoting phone compatibility, check an actual iOS/Android device on the same Wi-Fi: QR → text copy/paste → image preview/copy fallback → native photo picker upload → desktop download. Test private links and the relevant permission modes. Chromium's mobile viewport is not a physical-phone test.
+4. When a release is separately authorized, remove the source-preview notices from both READMEs. Check metadata and `sharedserver.__version__` agree on `0.3.0`. Do not republish an existing PyPI version.
+5. Run `python -m pytest`, `python -m build`, and `python -m twine check dist/*`. Install the wheel outside the checkout and check CLI, web assets and optional TLS. Confirm the source archive includes both READMEs, assets, tests and browser reproduction scripts.
+6. Publish a GitHub Release tagged `v0.3.0` on the reviewed commit. `publish.yml` checks the tag/version, tests, builds and validates the package before uploading with the existing PyPI Trusted Publisher and `pypi` environment. Do not change trust settings or add API tokens to the repository.
+7. Verify the successful publish job and public PyPI version. In a clean environment install `sharedserver==0.3.0` from PyPI, run `--version`/`--help`, and execute the smoke suites against that installed package. Verify the PyPI description and image links.
+8. Recheck community rules before adapting the older drafts in `promotion-review.md`. Disclose authorship and the actual use of AI assistance. Do not claim automatic OS clipboard synchronization or automatically trusted self-signed HTTPS.
 
-## Reproduce the short demo
-
-Install optional media tools separately from the application:
+## Reproduce the demo and browser checks
 
 ```bash
-pip install Pillow
+python -m pip install Pillow
 npm install --no-save playwright
 npx playwright install chromium
+SHARED_PYTHON=.venv/bin/python LAN_SMOKE=1 node scripts/browser_vnext.cjs
 SHARED_PYTHON=.venv/bin/python CAPTURE_DEMO=1 LAN_SMOKE=1 node scripts/browser_smoke.cjs
 python scripts/render_demo.py
 ```
 
-`LAN_SMOKE=1` uses the printed LAN IP in the mobile browser context and asserts that it is an ordinary HTTP context. Omit it for a localhost-only CI run. On Windows, set these environment variables using your shell's syntax. The smoke test creates and removes its own temporary share; captures contain synthetic text and a browser screenshot uploaded as a PNG.
+Omit `LAN_SMOKE=1` for localhost-only CI checks. The scripts use disposable shares and synthetic content. Set environment variables using the syntax for your shell. Demo captions identify a mobile-sized browser session rather than a physical phone. TLS tests verify a generated LAN certificate through an explicit test trust context; the product never installs a certificate into an OS/browser trust store.

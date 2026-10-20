@@ -2,3 +2,4 @@ include sharedserver.example.yaml
 recursive-include docs *.md *.svg *.png *.gif
 recursive-include scripts *.cjs *.py
 
+include README_zh.md

@@ -1,122 +1,146 @@
 # SharedServer
 
-**Like `http.server`, with uploads, a live text clipboard, and a QR code for your phone.**
+[English](https://github.com/NihaoKangkang/sharedserver/blob/main/README.md) · [简体中文](https://github.com/NihaoKangkang/sharedserver/blob/main/README_zh.md)
 
-Share files and text between devices on the same Wi-Fi. No accounts, no login, no cloud.
+[![PyPI](https://img.shields.io/pypi/v/sharedserver.svg)](https://pypi.org/project/sharedserver/)
+[![Python](https://img.shields.io/pypi/pyversions/sharedserver.svg)](https://pypi.org/project/sharedserver/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/NihaoKangkang/sharedserver/blob/main/LICENSE)
+[![CI](https://github.com/NihaoKangkang/sharedserver/actions/workflows/ci.yml/badge.svg)](https://github.com/NihaoKangkang/sharedserver/actions/workflows/ci.yml)
+
+**Scan to move files, share text and images between browsers, or transfer from a headless terminal. No login by default.**
+
+> **v0.3.0 source preview:** the new options below require this checkout until 0.3.0 is published. Install this repository with `python -m pip install .` to try them. `uvx`, `pipx run`, and ordinary PyPI installs use the published version.
+
+## Start in seconds
+
+Run inside a **dedicated transfer folder** on trusted Wi-Fi:
 
 ```bash
+uvx sharedserver
+# Or run without a permanent installation:
+pipx run sharedserver
+# Or install normally:
 python -m pip install sharedserver
 sharedserver
 ```
 
-Run from a dedicated transfer folder, scan the terminal QR code, and open the page on your phone. Keep the terminal open; press **Ctrl+C** when you are done. Python 3.10+ required.
+Scan the terminal QR code on your phone. Both devices need the same network. Keep the terminal open and press **Ctrl+C** when finished. Python 3.10+ is required. [Install uv](https://docs.astral.sh/uv/getting-started/installation/) or [pipx](https://pipx.pypa.io/stable/installation/) separately if needed.
 
-> The default share is open to every device that can reach it. Use trusted Wi-Fi. For a private QR link with no login screen, run `sharedserver --token`.
+**Default access is open to every reachable device.** Use `sharedserver --token` for a private QR link, and share only the folder you intend to expose.
 
-![Example terminal output with a LAN link and QR code](https://raw.githubusercontent.com/NihaoKangkang/sharedserver/main/docs/assets/terminal.png)
+![Demo: two browser sessions exchanging text and an image](https://raw.githubusercontent.com/NihaoKangkang/sharedserver/main/docs/assets/demo.gif)
 
-![Two browser sessions sharing text and uploading a file](https://raw.githubusercontent.com/NihaoKangkang/sharedserver/main/docs/assets/demo.gif)
+The short demo uses a desktop and a mobile-sized Chromium session, including ordinary LAN HTTP. It is not a physical iOS/Android certification.
 
-*12-second demo with a desktop browser and a mobile-sized browser session using a LAN HTTP address. Paste text on one device, copy it on the other, then upload an image back. The terminal preview uses an example address.*
+## Files, text and images
 
-## Three things, one command
+- Upload from the file picker, paste images/files with **Ctrl+V / Cmd+V**, or drag files anywhere onto the page. Uploads show percentage, average speed and estimated remaining time.
+- Paste text anywhere outside another input to fill the shared text box. Full mode synchronizes edits live; receiving devices choose **Copy text**.
+- Uploaded supported images appear on connected pages. Use **Copy image** in a trusted secure context; otherwise a preview opens for long-press/right-click copying or saving. Files stay in the shared folder; this does not automatically read or write the OS clipboard.
+- Select up to **200 files in the current folder** and choose **Download ZIP**. ZIPs are staged on disk and downloaded natively, without buffering the archive into browser memory.
+- Downloads support **HTTP Range**, including resume and HEAD requests. Uploads stream in chunks and never silently overwrite a file. Add `--rename-on-conflict` to keep both copies as `name (1).ext`.
+- Text is limited to **2 MiB of UTF-8** by default. Full/readonly text is kept in memory; drop-only submissions are saved as unique `text_*.txt` files. Images are files, not large WebSocket messages.
 
-- **Files:** browse folders, upload from your phone or drag files from your desktop, and download. Existing files are never overwritten.
-- **Text:** paste into the shared text box and other open pages update live. Select **Copy text** on the receiving device.
-- **Scan to connect:** the terminal prints a QR code automatically. Your phone needs only a browser and the same network.
+## Access modes
 
-SharedServer synchronizes text **between browser pages**. It does not monitor or automatically read your operating system clipboard. There is no native clipboard dependency, so missing `xclip` or Wayland tools cannot break file sharing.
+| Mode | Browse / download / ZIP | Upload files | Read shared text/images | Submit text/images |
+| --- | --- | --- | --- | --- |
+| `--mode full` (default) | Yes | Yes | Yes | Yes |
+| `--mode readonly` | Yes | No | Yes | No |
+| `--mode droponly` | No | Yes, inbox root | No history | Text via **Submit text**, images via upload |
 
-## Useful options
+Drop-only users cannot create folders or read earlier submissions through HTTP or WebSocket. The operator reads collected files directly on the host. Duplicate text submissions are saved separately.
 
-```bash
-sharedserver --token                    # Generate a fresh private QR link
-sharedserver --read-only                # Downloads and text sync; no file writes
-sharedserver --token --read-only        # Combine the two
-sharedserver 8080 -d ~/Downloads        # Choose a port and folder
-sharedserver --host 127.0.0.1           # This computer only
-sharedserver --no-qr                    # Hide the QR code
-sharedserver --qr                       # Force QR output, even when redirected
-python -m sharedserver 8080             # Also works as a Python module
-```
+The legacy `--read-only` switch still means **file writes off, text editable**. Use `--mode readonly` to lock text too. It cannot be combined with `--mode droponly`.
+
+## CLI reference
 
 | Option | Default | Purpose |
 | --- | --- | --- |
-| `port` | `8000` | Listening port |
-| `--host HOST` | `0.0.0.0` | Bind address; a specific address is reflected in the printed link |
-| `-d, --directory PATH` | Current folder | Folder to share |
-| `-c, --config PATH` | Auto-load `sharedserver.yaml`, if present | YAML configuration |
-| `--max-upload-size MB` | `1024` | Per-file upload limit in MiB |
-| `--token` | Off | Generate a random access token, included in the URL and QR code |
-| `--read-only / --no-read-only` | Off | Disable / enable uploads and folder creation; shared text stays editable |
-| `--qr / --no-qr` | On in interactive terminals | Show / hide terminal QR code |
-| `--version` | — | Installed version |
+| `[port]` | `8000` | Original positional port, still supported |
+| `-p, --port PORT` | Config or `8000` | Named port; cannot be combined with positional port |
+| `-b, --bind, --host HOST` | `0.0.0.0` | Bind address; `127.0.0.1` limits access to this computer |
+| `-d, --directory PATH` | Current directory | Shared root |
+| `-c, --config PATH` | Auto-load `sharedserver.yaml` if present | YAML configuration |
+| `--mode full\|readonly\|droponly` | `full` | HTTP, WebSocket and UI permissions |
+| `--read-only / --no-read-only` | Off | Legacy file-only protection |
+| `--max-size, --max-upload-size MB` | `1024` | Per-file limit in MiB; explicit `0` means unlimited |
+| `--rename-on-conflict` | Off | Append a number instead of returning `409 Conflict` |
+| `--token` | Off | Generate a strong random token in the QR link |
+| `--pin PIN` | Off | 4–6 ASCII digits in `?pin=...`; choose PIN or token |
+| `--random-url` | Off | Serve only under a random `/s/<secret>/` prefix |
+| `--auth USER:PASS` | Off | Optional HTTP Basic Auth; can combine with a link or PIN |
+| `--https` | Off | Temporary self-signed certificate, valid for one day |
+| `--qr / --no-qr` | On in interactive terminals | Force / suppress QR output |
+| `--version`, `-h / --help` | — | Version / help |
 
-For a reusable private link, set `SHAREDSERVER_TOKEN` to a random token of 16–256 printable ASCII characters with no whitespace. The environment overrides YAML; `--token` generates a fresh token and overrides both. Avoid putting tokens in shell arguments, screenshots, or public issue reports.
+Examples:
 
-A private link opens the page directly, sets an HttpOnly, SameSite session cookie, and redirects to a clean URL. Downloads and WebSockets use that session. Restarting the server expires browser sessions. Direct API clients can send `Authorization: Bearer <token>`. Server access logging is suppressed in token mode to keep the link out of request logs.
-
-## Configuration
-
-No config file is required. See [sharedserver.example.yaml](https://github.com/NihaoKangkang/sharedserver/blob/main/sharedserver.example.yaml) for an example:
-
-```yaml
-server:
-  host: 0.0.0.0
-  port: 8000
-share:
-  directory: ./
-  max_upload_size: 1073741824  # 1 GiB per file
-  read_only: false
-clipboard:
-  max_text_size: 2097152      # 2 MiB of UTF-8 text, in the box and copied text files
+```bash
+sharedserver -p 8080 -d ~/Transfer --token
+sharedserver --mode readonly --random-url
+sharedserver --mode droponly --pin 123456 --rename-on-conflict
+sharedserver --max-size 0 --rename-on-conflict
+python -m sharedserver 8080 --host 127.0.0.1
 ```
 
-CLI arguments override YAML values. Relative folder paths in YAML are resolved from the configuration file's folder. Custom `clipboard.text_extensions` and `clipboard.image_extensions` replace the default copy allowlists; matching is case-insensitive.
+For secrets that should not appear in process arguments, use **`SHAREDSERVER_AUTH`** (`username:password`) or **`SHAREDSERVER_TOKEN`** (16–256 printable ASCII characters without whitespace). CLI overrides the environment, which overrides YAML; `--token` generates a new token. Tokens/PINs bootstrap an HttpOnly, SameSite browser session and disappear from the URL. Sessions expire at restart. Basic Auth uses the browser's built-in prompt; no account database is created. PINs allow five failed attempts per client address per minute, with bounded tracking; strong token links are preferable to short PINs. Random paths and secrets are omitted from request access logs when protection is enabled.
 
-Text copy defaults: `.txt .md .json .xml .yaml .yml .csv .log .py .js .html .css .java .c .cpp`.
+### HTTPS and clipboard trust
 
-Image copy defaults: `.png .jpg .jpeg .webp`. Other formats are download-only.
+`--https` generates a fresh certificate and key in a private, hidden temporary directory, then removes them on exit. It uses installed OpenSSL, or the optional `cryptography` extra:
 
-## If your phone cannot connect
+```bash
+python -m pip install 'sharedserver[https]'
+sharedserver --https --token
+# Once this version is published:
+uvx --from 'sharedserver[https]' sharedserver --https
+```
 
-1. Put both devices on the same Wi-Fi. Guest networks may isolate devices even on the same router.
-2. Allow Python through your computer's firewall for the private network.
-3. If a VPN or multiple network adapters select the wrong IP, bind explicitly: `sharedserver --host 192.168.1.23`. The QR code then uses that address.
-4. If port 8000 is busy, use `sharedserver 8080`.
-5. A QR code is printed only in interactive terminals by default. Use `--qr` to force it, or open the printed link manually.
+**Self-signed HTTPS does not automatically establish device trust.** The program never installs a root certificate, changes browser security, or bypasses a certificate warning. Image clipboard access still depends on certificate trust, browser support and permissions. A new certificate is generated on each run. For ordinary HTTP, text-copy fallback and image preview/download remain available. See [MDN secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts).
 
-If your shell cannot find `sharedserver`, try `python -m sharedserver` with the same Python used to install it. On a system that blocks global `pip` installs, follow the [PyPA virtual environment guide](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/) first, or use `pipx install sharedserver` if you already have pipx.
+## Headless / curl cheat sheet
 
-Text copying includes a fallback for ordinary HTTP LAN pages. Image copying requires browser support and a secure context (HTTPS or localhost); downloading works without clipboard permission. Shared text is plain text only, up to **2 MiB of UTF-8** by default. Upload images and large files through the file browser instead.
+These commands use the default full mode without access protection:
 
-## Security and scope
+```bash
+# Upload a file; PUT is the supported curl upload interface (not multipart -F).
+curl --fail --upload-file ./report.pdf http://192.168.1.23:8000/upload/report.pdf
+# Download, or resume a partial download.
+curl --fail -o report.pdf 'http://192.168.1.23:8000/api/download?path=report.pdf'
+curl --fail -C - -o report.pdf 'http://192.168.1.23:8000/api/download?path=report.pdf'
+# Read, save or update UTF-8 shared text. Inspect text before executing anything.
+curl --fail --silent http://192.168.1.23:8000/api/clipboard/raw
+curl --fail --silent http://192.168.1.23:8000/api/clipboard/raw > clipboard.txt
+curl --fail --data-binary 'hello world' http://192.168.1.23:8000/api/clipboard/raw
+# Download selected files as a ZIP.
+curl --fail -H 'Content-Type: application/json' -d '{"paths":["one.txt","two.txt"]}' \
+  -o selected.zip http://192.168.1.23:8000/api/zip
+```
 
-This is a temporary LAN tool. Share a dedicated folder and stop the server after use. Token links control access; HTTP does not encrypt traffic. Do not expose SharedServer directly to the public internet.
+Use the **complete printed base URL** for `--random-url`: endpoints then live under `/s/<secret>/api/...` and `/s/<secret>/upload/...`. Token clients send `Authorization: Bearer <token>`; PIN clients append `?pin=<pin>`; Basic clients use `curl --user username` to prompt for the password. With Basic plus token, use Basic credentials plus `?token=...` (one Authorization header cannot carry both). For HTTPS use a CA/certificate you have verified with curl's `--cacert`; the examples do not disable certificate verification. curl/Wget upload clients receive `OK: filename uploaded` with HTTP 201. Other API clients receive JSON.
 
-- Without a token, every reachable device can read files, upload files, create folders, and edit shared text. Read-only mode disables file writes only.
-- Hidden files and folders (including `.env` and `.git`), symlinks, special files, and the active configuration file are excluded. Other visible files inside the shared folder are shared.
-- Paths are checked against the shared root. Traversal, absolute paths, and symlink paths are rejected. Upload names are sanitized for common desktop platforms.
-- Uploads are size-limited as they stream, staged in a hidden temporary file, and published without overwriting. Interrupted uploads clean up the temporary file.
-- HTTP and WebSocket requests validate browser origin and reject unrecognized hostnames to reduce cross-site requests and DNS rebinding. IP addresses, localhost, the computer hostname / `.local` name, and the explicitly configured bind hostname are supported.
-- Text is kept only in process memory. Duplicate updates do not rebroadcast, and acknowledgements do not replace the sender's newer edits. Reconnecting pages preserve unsent drafts until you choose to send them. Simultaneous edits use the last server-accepted update; this is not a collaborative document editor.
-- The shared folder must be controlled by its owner. Do not let untrusted local processes replace paths while the server is running.
+## Configuration and troubleshooting
 
-QR codes make manual discovery unnecessary. mDNS browsing is not available to ordinary browser pages; SharedServer needs no discovery daemon, multicast setup, or extra phone app.
+See [sharedserver.example.yaml](https://github.com/NihaoKangkang/sharedserver/blob/main/sharedserver.example.yaml). CLI values override YAML. Relative shared roots resolve from the config file's directory. Copy-format allowlists replace defaults, case-insensitively. Active HTML/SVG/JS/XML types are never served as inline images, even through a custom allowlist. Default image preview formats are PNG, JPEG and WebP, with signature checks. Other formats remain downloadable as attachments.
 
-## Development
+If a phone cannot connect, check same Wi-Fi, guest-device isolation, and the host firewall. With a VPN or multiple adapters, choose the correct address explicitly: `sharedserver -b 192.168.1.23`. Use another port if 8000 is busy, and `--qr` for redirected terminal output. If the executable is missing, try `python -m sharedserver` with the same Python used to install it. For externally managed Python installations, use uvx/pipx or the [PyPA virtual environment guide](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/).
+
+## Security and development
+
+Share a dedicated directory on a trusted network and stop the process when finished. Basic/PIN/token/path protection controls access; **HTTP does not encrypt traffic**. This is not a public-internet hosting service. Hidden paths, symlinks, special files and the active config are blocked. Paths are resolved under the shared root; MIME sniffing is disabled and downloads are attachments. Names/text use DOM `textContent`, not HTML interpolation. Upload and archive work uses bounded chunks and disk staging. The shared directory must be controlled by its owner; untrusted local path replacement is outside the threat model.
 
 ```bash
 git clone https://github.com/NihaoKangkang/sharedserver.git
 cd sharedserver
 python -m venv .venv
-# Activate .venv with the command for your shell, then:
-pip install -e ".[dev]"
+# Activate the virtual environment with your shell, then:
+python -m pip install -e '.[dev,https]'
 python -m pytest
 python -m build
 python -m twine check dist/*
 ```
 
-CI runs on Linux, macOS, and Windows with Python 3.10–3.14. A published GitHub Release builds, tests, validates, and publishes distributions using PyPI Trusted Publishing. Configure the `pypi` environment and trusted publisher in your PyPI account before publishing. Match the release tag to the package version (`v0.2.0`).
+CI tests Linux/macOS/Windows on Python 3.10–3.14, packaged assets, and two Chromium suites. Browser reproduction: `npm install --no-save playwright`, `npx playwright install chromium`, then `SHARED_PYTHON=.venv/bin/python node scripts/browser_vnext.cjs` (shell environment syntax varies). `LAN_SMOKE=1` additionally tests a real LAN HTTP address. [Release runbook](https://github.com/NihaoKangkang/sharedserver/blob/main/docs/releasing.md).
 
 [MIT license](https://github.com/NihaoKangkang/sharedserver/blob/main/LICENSE) · [Report an issue](https://github.com/NihaoKangkang/sharedserver/issues)
