@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+import stat as stat_module
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterable
@@ -17,7 +18,8 @@ class UploadTooLargeError(ValueError):
 
 
 class FileManager:
-    def __init__(self, root: Path, max_upload_size: int, policy: ClipboardPolicy):
+    def __init__(self, root: Path, max_upload_size: int, policy: ClipboardPolicy,
+                 private_paths: tuple[Path, ...] = ()):
         if not root.exists():
             raise FileNotFoundError(f"shared directory does not exist: {root}")
         if not root.is_dir():
@@ -25,9 +27,24 @@ class FileManager:
         self.root = root.resolve(strict=True)
         self.max_upload_size = max_upload_size
         self.policy = policy
+        self.private_paths = {path.resolve() for path in private_paths}
+
+    def is_private(self, path: Path) -> bool:
+        if path in self.private_paths:
+            return True
+        for private in self.private_paths:
+            try:
+                if path.samefile(private):
+                    return True
+            except OSError:
+                continue
+        return False
 
     def path(self, relative: str, *, must_exist: bool = True) -> Path:
-        return resolve_within(self.root, relative, must_exist=must_exist)
+        path = resolve_within(self.root, relative, must_exist=must_exist)
+        if self.is_private(path):
+            raise SecurityError("configuration files are not shared")
+        return path
 
     def relative(self, path: Path) -> str:
         return "" if path == self.root else path.relative_to(self.root).as_posix()
@@ -39,13 +56,15 @@ class FileManager:
 
         entries: list[FileEntry] = []
         for child in directory.iterdir():
-            if child.is_symlink() or child.name.startswith(".sharedserver-"):
+            if child.is_symlink() or child.name.startswith(".") or self.is_private(child):
                 continue
             try:
                 stat = child.stat()
             except OSError:
                 continue
-            is_directory = child.is_dir()
+            is_directory = stat_module.S_ISDIR(stat.st_mode)
+            if not is_directory and not stat_module.S_ISREG(stat.st_mode):
+                continue
             entries.append(
                 FileEntry(
                     name=child.name,
@@ -68,13 +87,17 @@ class FileManager:
         if not parent.is_dir():
             raise NotADirectoryError(relative)
         name = sanitize_filename(raw_name)
+        if name.startswith("."):
+            raise SecurityError("hidden filenames are not allowed")
         destination = resolve_within(parent, name, must_exist=False)
+        if self.is_private(destination):
+            raise SecurityError("configuration files are not shared")
         destination.mkdir()
         return self.relative(destination)
 
     def regular_file(self, relative: str) -> Path:
         path = self.path(relative)
-        if not path.is_file() or path.is_symlink():
+        if not stat_module.S_ISREG(path.stat().st_mode):
             raise FileNotFoundError(relative)
         return path
 
@@ -88,7 +111,11 @@ class FileManager:
         if not directory.is_dir():
             raise NotADirectoryError(relative)
         name = sanitize_filename(raw_name)
+        if name.startswith("."):
+            raise SecurityError("hidden filenames are not allowed")
         destination = resolve_within(directory, name, must_exist=False)
+        if self.is_private(destination):
+            raise SecurityError("configuration files are not shared")
         if destination.exists() or destination.is_symlink():
             raise FileExistsError(name)
 

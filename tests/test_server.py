@@ -8,7 +8,7 @@ from sharedserver.server import create_app
 
 def client_for(directory: Path, max_size: int = 1024) -> TestClient:
     config = AppConfig(share=ShareConfig(directory=directory, max_upload_size=max_size))
-    return TestClient(create_app(config))
+    return TestClient(create_app(config), base_url="http://127.0.0.1")
 
 
 def test_upload_list_download_and_no_overwrite(tmp_path: Path) -> None:
@@ -48,9 +48,9 @@ def test_upload_limit_and_path_escape(tmp_path: Path) -> None:
 
 def test_websocket_synchronizes_shared_text(tmp_path: Path) -> None:
     with client_for(tmp_path) as client:
-        with client.websocket_connect("/ws") as first, client.websocket_connect("/ws") as second:
+        with client.websocket_connect("ws://127.0.0.1/ws") as first, client.websocket_connect("ws://127.0.0.1/ws") as second:
             assert first.receive_json() == {"type": "clipboard", "content": ""}
             assert second.receive_json() == {"type": "clipboard", "content": ""}
             first.send_json({"type": "clipboard", "content": "hello"})
-            assert first.receive_json()["content"] == "hello"
+            assert first.receive_json() == {"type": "ack", "id": 0}
             assert second.receive_json()["content"] == "hello"

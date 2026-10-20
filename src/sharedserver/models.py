@@ -27,7 +27,8 @@ class DirectoryCreate(BaseModel):
 
 class ClipboardUpdate(BaseModel):
     type: Literal["clipboard"]
-    content: str = Field(max_length=1_000_000)
+    content: str
+    id: int = Field(default=0, ge=0)
 
 
 class TextContent(BaseModel):

@@ -30,6 +30,14 @@ def resolve_within(root: Path, supplied: str = "", *, must_exist: bool = True) -
     if ".." in posix_path.parts:
         raise SecurityError("parent path segments are not allowed")
 
+    current = root
+    for part in posix_path.parts:
+        current = current / part
+        if part.startswith("."):
+            raise SecurityError("hidden paths are not shared")
+        if current.is_symlink():
+            raise SecurityError("symbolic links are not allowed")
+
     try:
         candidate = (root / Path(*posix_path.parts)).resolve(strict=must_exist)
         candidate.relative_to(root)

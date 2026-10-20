@@ -27,3 +27,12 @@ clipboard:
     assert config.clipboard.text_extensions == (".txt", ".md")
     assert config.clipboard.image_extensions == (".webp",)
 
+
+
+def test_invalid_security_and_yaml_fail_clearly(tmp_path):
+    import pytest
+    for content in ('security:\n  token: short', 'share:\n  read_only: "false"', '[invalid:', 'false'):
+        config_file = tmp_path / "bad.yaml"
+        config_file.write_text(content)
+        with pytest.raises(ValueError):
+            load_config(config_file)

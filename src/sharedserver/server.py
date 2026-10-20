@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .clipboard import ClipboardPolicy
+from . import __version__
+from .access import AccessPolicy, same_origin
 from .config import AppConfig
 from .file_manager import FileManager, UploadTooLargeError
 from .models import (
@@ -32,19 +33,16 @@ def _http_error(exc: Exception) -> HTTPException:
     return HTTPException(status_code=400, detail=str(exc))
 
 
-def _same_origin(websocket: WebSocket) -> bool:
-    origin = websocket.headers.get("origin")
-    host = websocket.headers.get("host")
-    return not origin or not host or urlsplit(origin).netloc.casefold() == host.casefold()
-
-
 def create_app(config: AppConfig) -> FastAPI:
     package_dir = Path(__file__).parent
     policy = ClipboardPolicy(config.clipboard)
-    manager = FileManager(config.share.directory, config.share.max_upload_size, policy)
-    hub = ClipboardHub()
+    manager = FileManager(config.share.directory, config.share.max_upload_size, policy,
+                          (config.config_file,) if config.config_file else ())
+    hub = ClipboardHub(config.clipboard.max_text_size)
+    access = AccessPolicy(config)
 
-    app = FastAPI(title="SharedServer", version="0.1.0", docs_url=None, redoc_url=None)
+    app = FastAPI(title="SharedServer", version=__version__, docs_url=None,
+                  redoc_url=None, openapi_url=None)
     app.state.config = config
     app.state.file_manager = manager
     app.state.clipboard_hub = hub
@@ -52,13 +50,31 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
-        response = await call_next(request)
+        if not access.allowed_host(request) or not same_origin(request):
+            response = JSONResponse({"detail": "host or origin not allowed"}, status_code=403)
+        elif not access.authorized(request):
+            response = JSONResponse(
+                {"detail": "Open the private link or scan the QR code shown in the server terminal."},
+                status_code=403,
+            )
+        elif config.security.token and request.url.path == "/" and "token" in request.query_params:
+            response = RedirectResponse("/", status_code=303)
+            response.set_cookie(access.cookie_name, access.session, httponly=True,
+                                samesite="strict", secure=request.url.scheme == "https")
+        else:
+            response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Cache-Control"] = "no-store"
+        ws_source = ""
+        if access.allowed_host(request):
+            ws_scheme = "wss" if request.url.scheme == "https" else "ws"
+            ws_source = f" {ws_scheme}://{request.headers['host']}"
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; connect-src 'self' ws: wss:; "
-            "img-src 'self' blob: data:; object-src 'none'; frame-ancestors 'none'"
+            f"default-src 'self'; connect-src 'self'{ws_source}; "
+            "img-src 'self' blob: data:; object-src 'none'; frame-ancestors 'none'; "
+            "base-uri 'none'; form-action 'self'"
         )
         return response
 
@@ -66,6 +82,17 @@ def create_app(config: AppConfig) -> FastAPI:
     async def index() -> HTMLResponse:
         html = (package_dir / "templates" / "index.html").read_text(encoding="utf-8")
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+
+    @app.get("/api/config")
+    async def capabilities() -> dict[str, int | bool]:
+        return {"max_text_size": config.clipboard.max_text_size,
+                "max_upload_size": config.share.max_upload_size,
+                "read_only": config.share.read_only,
+                "private_link": config.security.token is not None}
+
+    def require_writable() -> None:
+        if config.share.read_only:
+            raise HTTPException(status_code=403, detail="files are read-only")
 
     @app.get("/api/files", response_model=DirectoryListing)
     async def list_files(path: str = Query(default="")) -> DirectoryListing:
@@ -76,6 +103,7 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.post("/api/directories", status_code=201)
     async def create_directory(body: DirectoryCreate) -> dict[str, str]:
+        require_writable()
         try:
             return {"path": manager.create_directory(body.path, body.name)}
         except (SecurityError, FileNotFoundError, NotADirectoryError, FileExistsError, OSError) as exc:
@@ -87,6 +115,7 @@ def create_app(config: AppConfig) -> FastAPI:
         path: str = Query(default=""),
         filename: str = Query(min_length=1, max_length=1024),
     ) -> UploadResult:
+        require_writable()
         content_length = request.headers.get("content-length")
         if content_length:
             try:
@@ -134,8 +163,8 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.websocket("/ws")
     async def clipboard_socket(websocket: WebSocket) -> None:
-        if not _same_origin(websocket):
-            await websocket.close(code=1008, reason="origin not allowed")
+        if not access.allowed_host(websocket) or not same_origin(websocket) or not access.authorized(websocket):
+            await websocket.close(code=1008, reason="access denied")
             return
         await hub.handle(websocket)
 

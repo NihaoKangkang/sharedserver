@@ -30,6 +30,10 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.helper-text { color: var(--muted); font-size: 12px; }
+#send-draft { margin-top: 10px; }
+#shared-text[aria-invalid="true"] { border-color: var(--danger); }
 
 body {
   margin: 0;
