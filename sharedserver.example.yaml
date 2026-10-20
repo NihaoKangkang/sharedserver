@@ -5,6 +5,7 @@ server:
 share:
   directory: ./
   max_upload_size: 1073741824  # bytes, default 1 GiB
+  read_only: false            # downloads and text sync; no file writes when true
 
 clipboard:
   max_text_size: 2097152       # bytes, default 2 MiB
@@ -30,3 +31,7 @@ clipboard:
     - .jpeg
     - .webp
 
+
+# Optional private link. Prefer SHAREDSERVER_TOKEN over storing a secret here.
+# security:
+#   token: replace-with-a-long-random-token

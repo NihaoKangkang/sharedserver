@@ -30,13 +30,15 @@
         <div>
           <p class="eyebrow">Live sync</p>
           <h1 id="clipboard-title">Shared text clipboard</h1>
-          <p>Type on any device and every connected device updates instantly.</p>
+          <p>Paste or type here to sync between open pages. Use Copy text on the receiving device.</p>
         </div>
         <button id="copy-shared" class="button secondary" type="button">Copy text</button>
       </div>
       <label class="sr-only" for="shared-text">Shared text</label>
-      <textarea id="shared-text" rows="8" maxlength="1000000" placeholder="Paste or type text here…" disabled></textarea>
-      <div class="textarea-meta"><span id="character-count">0 characters</span><span>Stored in memory only</span></div>
+      <textarea id="shared-text" rows="8" placeholder="Paste or type text here…" disabled></textarea>
+      <div class="textarea-meta"><span id="character-count">0 bytes</span><span id="text-limit">Stored in memory only</span></div>
+      <button id="send-draft" class="button secondary" type="button" hidden>Send preserved draft</button>
+      <p id="clipboard-help" class="helper-text">Text only. Your system clipboard is never read automatically.</p>
     </section>
 
     <section class="panel files-panel" aria-labelledby="files-title">
@@ -46,6 +48,7 @@
           <h2 id="files-title">File browser</h2>
         </div>
         <div class="toolbar">
+          <button id="refresh-files" class="button secondary" type="button">Refresh</button>
           <button id="new-folder" class="button secondary" type="button">New folder</button>
           <button id="choose-files" class="button primary" type="button">Upload files</button>
           <input id="file-input" type="file" multiple hidden>
@@ -56,7 +59,7 @@
 
       <div id="drop-zone" class="drop-zone">
         <span>Drop files here to upload</span>
-        <small>Existing files will not be overwritten</small>
+        <small id="upload-help">Existing files will not be overwritten</small>
       </div>
       <div id="upload-list" class="upload-list" aria-live="polite"></div>
 

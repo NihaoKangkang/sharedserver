@@ -5,6 +5,11 @@ const elements = {
   text: document.querySelector("#shared-text"),
   count: document.querySelector("#character-count"),
   copyShared: document.querySelector("#copy-shared"),
+  textLimit: document.querySelector("#text-limit"),
+  clipboardHelp: document.querySelector("#clipboard-help"),
+  sendDraft: document.querySelector("#send-draft"),
+  refreshFiles: document.querySelector("#refresh-files"),
+  uploadHelp: document.querySelector("#upload-help"),
   breadcrumbs: document.querySelector("#breadcrumbs"),
   fileList: document.querySelector("#file-list"),
   empty: document.querySelector("#empty-state"),
@@ -24,6 +29,11 @@ let currentPath = "";
 let socket;
 let reconnectDelay = 500;
 let toastTimer;
+let settings;
+let localDraft = false;
+let sequence = 0;
+let directoryRequest = 0;
+const utf8 = new TextEncoder();
 
 function showToast(message, isError = false) {
   clearTimeout(toastTimer);
@@ -54,6 +64,7 @@ function connectClipboard() {
 
   socket.addEventListener("open", () => {
     reconnectDelay = 500;
+    elements.sendDraft.disabled = false;
     setConnection("online", "Live sync connected");
   });
   socket.addEventListener("message", event => {
@@ -61,14 +72,20 @@ function connectClipboard() {
     try { message = JSON.parse(event.data); } catch (_) { return; }
     if (message.type === "clipboard") {
       elements.text.disabled = false;
-      if (elements.text.value !== message.content) elements.text.value = message.content;
+      if (localDraft) {
+        elements.sendDraft.hidden = false;
+        showToast("Your unsent draft was preserved. Send it when ready.");
+      } else if (elements.text.value !== message.content) elements.text.value = message.content;
       updateCount();
+    } else if (message.type === "ack" && message.id === sequence) {
+      localDraft = false;
+      elements.sendDraft.hidden = true;
     } else if (message.type === "error") {
       showToast(message.message, true);
     }
   });
   socket.addEventListener("close", () => {
-    elements.text.disabled = true;
+    elements.sendDraft.disabled = true;
     setConnection("offline", "Connection lost, retrying");
     setTimeout(connectClipboard, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 2, 8000);
@@ -77,22 +94,45 @@ function connectClipboard() {
 }
 
 function updateCount() {
-  const count = elements.text.value.length;
-  elements.count.textContent = `${count.toLocaleString()} ${count === 1 ? "character" : "characters"}`;
+  const count = utf8.encode(elements.text.value).length;
+  elements.count.textContent = `${formatSize(count)} / ${formatSize(settings.max_text_size)}`;
+  elements.text.setAttribute("aria-invalid", String(count > settings.max_text_size));
 }
 
-elements.text.addEventListener("input", () => {
+function sendText() {
   updateCount();
+  localDraft = true;
+  if (utf8.encode(elements.text.value).length > settings.max_text_size) {
+    showToast(`Text is too large. Limit: ${formatSize(settings.max_text_size)} of UTF-8 text.`, true);
+    return;
+  }
   if (socket?.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({type: "clipboard", content: elements.text.value}));
+    socket.send(JSON.stringify({type: "clipboard", content: elements.text.value, id: ++sequence}));
+  } else {
+    elements.sendDraft.hidden = false;
+  }
+}
+elements.text.addEventListener("input", event => {
+  updateCount();
+  localDraft = true;
+  if (!event.isComposing) sendText();
+});
+elements.text.addEventListener("compositionend", sendText);
+elements.sendDraft.addEventListener("click", sendText);
+elements.text.addEventListener("paste", event => {
+  if ([...event.clipboardData.items].some(item => item.kind === "file")) {
+    showToast("This channel accepts text only. Use Upload files for images.", true);
   }
 });
 
 async function copyText(text) {
   if (navigator.clipboard?.writeText && window.isSecureContext) {
-    await navigator.clipboard.writeText(text);
-    return;
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch (_) { /* Try the user-initiated selection fallback. */ }
   }
+  const focused = document.activeElement;
   const helper = document.createElement("textarea");
   helper.value = text;
   helper.style.position = "fixed";
@@ -101,6 +141,7 @@ async function copyText(text) {
   helper.select();
   const copied = document.execCommand("copy");
   helper.remove();
+  focused?.focus({preventScroll: true});
   if (!copied) throw new Error("Clipboard access was denied by the browser");
 }
 
@@ -201,7 +242,8 @@ function renderEntry(entry) {
   if (!entry.is_directory) {
     if (entry.copy_kind === "text") {
       actionList.append(button("Copy", () => copyFileText(entry.path), "Copy file text"));
-    } else if (entry.copy_kind === "image") {
+    } else if (entry.copy_kind === "image" && window.isSecureContext
+               && window.ClipboardItem && navigator.clipboard?.write) {
       actionList.append(button("Copy", () => copyImage(entry.path), "Copy image"));
     }
     const download = document.createElement("a");
@@ -218,9 +260,11 @@ function renderEntry(entry) {
 }
 
 async function loadDirectory(path = currentPath) {
+  const request = ++directoryRequest;
   try {
     const response = await api(`/api/files?${pathParams(path)}`);
     const listing = await response.json();
+    if (request !== directoryRequest) return;
     currentPath = listing.path;
     renderBreadcrumbs(currentPath);
     elements.fileList.replaceChildren(...listing.entries.map(renderEntry));
@@ -269,8 +313,12 @@ async function copyImage(path) {
   } catch (error) { showToast(`Copy failed: ${error.message}`, true); }
 }
 
-function uploadFile(file) {
+function uploadFile(file, destination) {
   return new Promise((resolve, reject) => {
+    if (file.size > settings.max_upload_size) {
+      reject(new Error(`${file.name}: exceeds the ${formatSize(settings.max_upload_size)} upload limit`));
+      return;
+    }
     const item = document.createElement("div");
     item.className = "upload-item";
     const name = document.createElement("span");
@@ -284,7 +332,7 @@ function uploadFile(file) {
     item.append(name, progress, percent);
     elements.uploadList.append(item);
 
-    const params = pathParams(currentPath);
+    const params = pathParams(destination);
     params.set("filename", file.name);
     const request = new XMLHttpRequest();
     request.open("PUT", `/api/upload?${params}`);
@@ -309,14 +357,20 @@ function uploadFile(file) {
         reject(new Error(`${file.name}: ${message}`));
       }
     });
-    request.addEventListener("error", () => reject(new Error(`${file.name}: network error`)));
+    request.addEventListener("error", () => {
+      item.classList.add("error");
+      percent.textContent = "Failed";
+      reject(new Error(`${file.name}: network error`));
+    });
     request.send(file);
   });
 }
 
 async function uploadFiles(files) {
+  if (!settings || settings.read_only) return;
+  const destination = currentPath;
   for (const file of files) {
-    try { await uploadFile(file); } catch (error) { showToast(error.message, true); }
+    try { await uploadFile(file, destination); } catch (error) { showToast(error.message, true); }
   }
   elements.fileInput.value = "";
   await loadDirectory();
@@ -335,6 +389,7 @@ elements.fileInput.addEventListener("change", () => uploadFiles([...elements.fil
 elements.dropZone.addEventListener("drop", event => uploadFiles([...event.dataTransfer.files]));
 
 elements.newFolder.addEventListener("click", () => {
+  if (!settings || settings.read_only) return;
   elements.folderForm.reset();
   elements.folderDialog.showModal();
   elements.folderName.focus();
@@ -354,5 +409,33 @@ elements.folderForm.addEventListener("submit", async event => {
   } catch (error) { showToast(error.message, true); }
 });
 
-connectClipboard();
-loadDirectory();
+elements.refreshFiles.addEventListener("click", () => loadDirectory());
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && settings) loadDirectory();
+});
+
+async function initialize() {
+  try {
+    settings = await (await api("/api/config")).json();
+    elements.textLimit.textContent = "Text only · Stored in memory";
+    elements.uploadHelp.textContent = `Up to ${formatSize(settings.max_upload_size)} per file · No overwrites`;
+    if (settings.read_only) {
+      elements.chooseFiles.hidden = true;
+      elements.newFolder.hidden = true;
+      elements.dropZone.hidden = true;
+      const note = document.createElement("p");
+      note.className = "helper-text";
+      note.textContent = "Files are read-only. You can still download files and share text.";
+      elements.breadcrumbs.before(note);
+    }
+    if (!window.isSecureContext) {
+      elements.clipboardHelp.textContent = "Text only. Paste here manually, then use Copy text on the other device. Image copying needs HTTPS; downloads work over Wi-Fi.";
+    }
+    connectClipboard();
+    await loadDirectory();
+  } catch (error) {
+    setConnection("offline", "Cannot connect");
+    showToast(error.message, true);
+  }
+}
+initialize();
