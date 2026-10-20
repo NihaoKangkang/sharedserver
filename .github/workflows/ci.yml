@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   test:
     strategy:
@@ -17,10 +21,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: ${{ matrix.python }}
-      - run: python -m pip install '.[dev]'
+      - run: python -m pip install '.[dev,https]'
       - run: python -m pytest -q
       - run: python -m build
       - run: python -m twine check dist/*
@@ -35,13 +39,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
       - run: python -m pip install .
       - run: npm install --no-save playwright
       - run: npx playwright install --with-deps chromium
       - run: node scripts/browser_smoke.cjs
+      - run: node scripts/browser_vnext.cjs

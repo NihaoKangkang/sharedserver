@@ -7,6 +7,7 @@ import stat as stat_module
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterable
+from starlette.concurrency import run_in_threadpool
 
 from .clipboard import ClipboardPolicy
 from .models import DirectoryListing, FileEntry, UploadResult
@@ -19,7 +20,7 @@ class UploadTooLargeError(ValueError):
 
 class FileManager:
     def __init__(self, root: Path, max_upload_size: int, policy: ClipboardPolicy,
-                 private_paths: tuple[Path, ...] = ()):
+                 private_paths: tuple[Path, ...] = (), rename_on_conflict: bool = False):
         if not root.exists():
             raise FileNotFoundError(f"shared directory does not exist: {root}")
         if not root.is_dir():
@@ -28,9 +29,11 @@ class FileManager:
         self.max_upload_size = max_upload_size
         self.policy = policy
         self.private_paths = {path.resolve() for path in private_paths}
+        self.rename_on_conflict = rename_on_conflict
+        self.pending: set[Path] = set()
 
     def is_private(self, path: Path) -> bool:
-        if path in self.private_paths:
+        if path in self.private_paths or path in self.pending:
             return True
         for private in self.private_paths:
             try:
@@ -116,7 +119,7 @@ class FileManager:
         destination = resolve_within(directory, name, must_exist=False)
         if self.is_private(destination):
             raise SecurityError("configuration files are not shared")
-        if destination.exists() or destination.is_symlink():
+        if not self.rename_on_conflict and (destination.exists() or destination.is_symlink()):
             raise FileExistsError(name)
 
         size = 0
@@ -129,30 +132,53 @@ class FileManager:
                 temp_path = Path(temporary.name)
                 async for chunk in chunks:
                     size += len(chunk)
-                    if size > self.max_upload_size:
+                    if self.max_upload_size and size > self.max_upload_size:
                         raise UploadTooLargeError(
                             f"upload exceeds {self.max_upload_size} bytes"
                         )
-                    temporary.write(chunk)
-                temporary.flush()
-                os.fsync(temporary.fileno())
+                    for offset in range(0, len(chunk), 65536):
+                        await run_in_threadpool(temporary.write, chunk[offset:offset + 65536])
+                await run_in_threadpool(temporary.flush)
+                await run_in_threadpool(os.fsync, temporary.fileno())
 
-            try:
-                os.link(temp_path, destination)
-            except FileExistsError:
-                raise
-            except OSError:
-                # Some network and removable filesystems do not support hard links.
-                with temp_path.open("rb") as source, destination.open("xb") as target:
+            stem, suffix = Path(name).stem, Path(name).suffix
+            while len(stem.encode("utf-8")) > 160:
+                stem = stem[:-1]
+            while len(suffix.encode("utf-8")) > 60:
+                suffix = suffix[:-1]
+            for number in range(10001):
+                if number:
+                    numbered = f"{stem} ({number}){suffix}"
+                    destination = self.path(self.relative(directory / numbered), must_exist=False)
+                try:
+                    await run_in_threadpool(os.link, temp_path, destination)
+                    break
+                except FileExistsError:
+                    if not self.rename_on_conflict or number == 10000:
+                        raise
+                    continue
+                except OSError:
+                    # Exclusive creation also handles filesystems without hard links.
+                    try:
+                        target = destination.open("xb")
+                    except FileExistsError:
+                        if not self.rename_on_conflict or number == 10000:
+                            raise
+                        continue
                     fallback_destination_created = True
-                    shutil.copyfileobj(source, target)
+                    self.pending.add(destination)
+                    with temp_path.open("rb") as source, target:
+                        await run_in_threadpool(shutil.copyfileobj, source, target, 65536)
+                    break
+            name = destination.name
             return UploadResult(name=name, path=self.relative(destination), size=size)
         except FileExistsError:
             raise
-        except Exception:
+        except BaseException:
             if fallback_destination_created:
                 destination.unlink(missing_ok=True)
             raise
         finally:
+            self.pending.discard(destination)
             if temp_path is not None:
                 temp_path.unlink(missing_ok=True)

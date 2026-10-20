@@ -40,3 +40,11 @@ class UploadResult(BaseModel):
     path: str
     size: int
 
+
+class ZipSelection(BaseModel):
+    paths: list[str] = Field(min_length=1, max_length=200)
+
+
+class ImageSelection(BaseModel):
+    path: str = Field(min_length=1, max_length=1024)
+

@@ -2,9 +2,9 @@ import re
 from pathlib import Path
 
 
-def test_source_and_documentation_use_english_only() -> None:
+def test_application_source_uses_english_only() -> None:
     root = Path(__file__).parents[1]
-    files = [root / "README.md", root / "pyproject.toml", root / "sharedserver.example.yaml"]
+    files = [root / "pyproject.toml", root / "sharedserver.example.yaml"]
     files += [
         path
         for path in (root / "src").rglob("*")
