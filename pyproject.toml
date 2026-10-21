@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sharedserver"
-version = "0.3.0"
+version = "0.4.0"
 description = "Zero-configuration LAN file sharing and real-time text clipboard"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -55,7 +55,7 @@ Issues = "https://github.com/NihaoKangkang/sharedserver/issues"
 where = ["src"]
 
 [tool.setuptools.package-data]
-sharedserver = ["templates/*.html", "static/*.css", "static/*.js"]
+sharedserver = ["templates/*.html", "static/*.css", "static/*.js", "static/vendor/*.js", "static/vendor/*.txt", "static/vendor/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

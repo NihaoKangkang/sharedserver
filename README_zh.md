@@ -39,6 +39,15 @@ sharedserver
 - 下载支持 **HTTP Range**、断点续传和 HEAD。上传采用分块写入，默认冲突返回 `409`，不会静默覆盖；加上 `--rename-on-conflict` 会保存为 `文件名 (1).扩展名`。
 - 共享文本默认上限为 **2 MiB UTF-8 字节**。完整/只读模式的文本仅在内存中保存；收集箱文本提交为唯一的 `text_*.txt` 文件。图片保存到共享目录，WebSocket 只传路径信息。
 
+## 工作台界面
+
+0.4.0 新增离线优先的桌面与移动工作台。可使用 `python -m pip install --upgrade sharedserver` 或 `pipx upgrade sharedserver` 升级。
+
+- 桌面双栏、平板 Tab、手机文件卡片；下载按钮常驻，长文件名换行。
+- 系统/浅色/深色主题、当前目录搜索排序、安全纯文本/图片预览、可取消传输队列。
+- 手机端开发者动作收进“更多”，顶部工具菜单提供二维码和快捷键帮助；文本支持快捷同步、换行切换和手动复制降级。
+- 受保护二维码需手动粘贴终端完整链接；curl 使用明确的认证模板，不导出浏览器会话或密码。音视频播放、文件夹上传另行迭代。
+
 ## 权限模式
 
 | 模式 | 浏览、下载、ZIP | 上传文件 | 读取共享图文 | 提交图文 |
@@ -141,6 +150,6 @@ python -m build
 python -m twine check dist/*
 ```
 
-CI 覆盖 Linux/macOS/Windows、Python 3.10–3.14、安装包资源和两组 Chromium 测试。浏览器测试可安装 `npm install --no-save playwright`、`npx playwright install chromium` 后，设置 `SHARED_PYTHON=.venv/bin/python` 并运行 `node scripts/browser_vnext.cjs`；不同 shell 设置环境变量的语法不同。额外设置 `LAN_SMOKE=1` 可验证实际内网 IP 的 HTTP 场景。参见[发布流程](https://github.com/NihaoKangkang/sharedserver/blob/main/docs/releasing.md)。
+CI 覆盖 Linux/macOS/Windows、Python 3.10–3.14、安装包资源和四组 Chromium 测试。浏览器测试可安装 `npm install --no-save playwright jsqr@1.4.0`、`npx playwright install chromium` 后，设置 `SHARED_PYTHON=.venv/bin/python` 并运行 `node scripts/browser_vnext.cjs`；不同 shell 设置环境变量的语法不同。额外设置 `LAN_SMOKE=1` 可验证实际内网 IP 的 HTTP 场景。响应式/交互矩阵和独立二维码解码可运行 `SHARED_PYTHON=.venv/bin/python node scripts/browser_ui.cjs`。`SHARED_PYTHON=.venv/bin/python node scripts/browser_ui_audit.cjs` 覆盖目录重试、焦点、表单与上传无障碍回归。参见[发布流程](https://github.com/NihaoKangkang/sharedserver/blob/main/docs/releasing.md)。
 
 [MIT 许可证](https://github.com/NihaoKangkang/sharedserver/blob/main/LICENSE) · [反馈问题](https://github.com/NihaoKangkang/sharedserver/issues)
