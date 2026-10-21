@@ -1,115 +1,562 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <meta name="theme-color" content="#0d1117">
-  <title>SharedServer</title>
-  <link rel="stylesheet" href="./static/app.css">
-  <script src="./static/app.js" defer></script>
-</head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo" aria-hidden="true">S</span>
-      <div>
-        <strong>SharedServer</strong>
-        <span>Local network sharing</span>
-      </div>
-    </div>
-    <div id="connection" class="connection pending" role="status">
-      <span class="status-dot"></span>
-      <span>Connecting</span>
-    </div>
-  </header>
-
-  <main class="page">
-    <section class="panel clipboard-panel" aria-labelledby="clipboard-title">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Live sync</p>
-          <h1 id="clipboard-title">Shared text clipboard</h1>
-          <p>Paste or type here to sync between open pages. Use Copy text on the receiving device.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f8fafc" />
+    <title>SharedServer</title>
+    <script src="./static/theme.js"></script>
+    <link rel="stylesheet" href="./static/app.css" />
+    <script src="./static/vendor/qrcodegen.js" defer></script>
+    <script src="./static/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">Skip to workspace</a>
+    <header class="topbar">
+      <div class="header-main">
+        <a class="brand" href="./" aria-label="SharedServer home"
+          ><span class="brand-mark" data-icon="layers"></span
+          ><span>SharedServer<small>Local network workspace</small></span></a
+        >
+        <div class="header-status">
+          <span id="mode-badge" class="badge">Loading</span>
+          <div id="connection" class="connection pending" role="status">
+            <span class="status-dot"></span><span>Connecting</span>
+          </div>
         </div>
-        <button id="copy-shared" class="button secondary" type="button">Copy text</button>
+        <div class="header-tools">
+          <details id="header-actions" open>
+            <summary
+              class="button icon-button"
+              aria-label="More workspace tools"
+            >
+              <span data-icon="more"></span>
+            </summary>
+            <div class="header-actions-list">
+              <button
+                id="open-share"
+                class="button icon-button"
+                type="button"
+                aria-label="Share connection"
+                title="Share connection"
+              >
+                <span data-icon="qr"></span>
+              </button>
+              <button
+                id="open-help"
+                class="button icon-button"
+                type="button"
+                aria-label="Keyboard shortcuts"
+                title="Keyboard shortcuts"
+              >
+                <span data-icon="help"></span>
+              </button>
+            </div>
+          </details>
+          <label class="theme-control"
+            ><span data-icon="sun" aria-hidden="true"></span
+            ><span class="sr-only">Theme</span
+            ><select id="theme-select">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select></label
+          >
+        </div>
       </div>
-      <label class="sr-only" for="shared-text">Shared text</label>
-      <textarea id="shared-text" rows="8" placeholder="Paste or type text here…" disabled></textarea>
-      <div class="textarea-meta"><span id="character-count">0 bytes</span><span id="text-limit">Stored in memory only</span></div>
-      <button id="send-draft" class="button secondary" type="button" hidden>Send preserved draft</button>
-      <button id="submit-text" class="button primary" type="button" hidden>Submit text</button>
-      <p id="clipboard-help" class="helper-text">Text only. Your system clipboard is never read automatically.</p>
-      <div id="shared-image" class="shared-image" hidden>
-        <p class="helper-text">Latest shared image · click to preview</p>
-        <button id="view-shared-image" type="button" aria-label="Preview shared image">
-          <img id="shared-image-preview" alt="Latest shared image">
+      <div class="path-bar">
+        <nav id="breadcrumbs" aria-label="Current path"></nav>
+        <button
+          id="copy-path"
+          class="button icon-button"
+          aria-label="Copy relative path"
+          type="button"
+        >
+          <span data-icon="copy"></span>
         </button>
       </div>
-    </section>
-
-    <section class="panel files-panel" aria-labelledby="files-title">
-      <div class="section-heading files-heading">
-        <div>
-          <p class="eyebrow">Shared directory</p>
-          <h2 id="files-title">File browser</h2>
+    </header>
+    <nav class="workspace-tabs" role="tablist" aria-label="Workspace">
+      <button
+        id="tab-files"
+        role="tab"
+        aria-controls="files-panel"
+        aria-selected="true"
+        type="button"
+      >
+        <span data-icon="folder"></span><span id="files-tab-label">Files</span>
+      </button>
+      <button
+        id="tab-clipboard"
+        role="tab"
+        aria-controls="clipboard-panel"
+        aria-selected="false"
+        tabindex="-1"
+        type="button"
+      >
+        <span data-icon="zap"></span
+        ><span id="clipboard-tab-label">Clipboard &amp; text</span>
+      </button>
+    </nav>
+    <main id="workspace" class="page" tabindex="-1">
+      <section
+        id="files-panel"
+        class="panel files-panel"
+        aria-labelledby="files-title"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Your shared folder</p>
+            <h1
+              id="files-title"
+              tabindex="-1"
+              aria-describedby="folder-context"
+            >
+              Files
+            </h1>
+            <p id="folder-context" class="sr-only">
+              Current folder: Shared folder
+            </p>
+          </div>
+          <span id="file-count" class="muted"></span>
         </div>
+        <p id="mode-help" class="helper-text"></p>
         <div class="toolbar">
-          <button id="refresh-files" class="button secondary" type="button">Refresh</button>
-          <button id="new-folder" class="button secondary" type="button">New folder</button>
-          <button id="choose-files" class="button primary" type="button">Upload files</button>
-          <input id="file-input" type="file" multiple hidden>
+          <button
+            id="choose-files"
+            class="button primary"
+            type="button"
+            disabled
+          >
+            <span data-icon="upload"></span>Upload files
+          </button>
+          <button id="new-folder" class="button" type="button" disabled>
+            <span data-icon="folder-plus"></span>New folder
+          </button>
+          <button
+            id="refresh-files"
+            class="button icon-button"
+            type="button"
+            aria-label="Refresh"
+            title="Refresh"
+          >
+            <span data-icon="refresh"></span>
+          </button>
+          <input id="file-input" type="file" multiple hidden />
+        </div>
+        <div id="drop-zone" class="drop-zone">
+          <span data-icon="upload"></span>
+          <div>
+            Drop files or paste a screenshot<small id="upload-help"
+              >Checking upload permissions…</small
+            >
+          </div>
+        </div>
+        <div id="file-controls" class="file-controls">
+          <label class="search-field"
+            ><span data-icon="search"></span
+            ><span class="sr-only">Search current folder</span
+            ><input
+              id="file-search"
+              type="search"
+              placeholder="Search this folder"
+              autocomplete="off"
+          /></label>
+          <label class="sort-field"
+            ><span class="sr-only">Sort files</span
+            ><select id="file-sort">
+              <option value="name-asc">Name ↑</option>
+              <option value="name-desc">Name ↓</option>
+              <option value="size-asc">Size ascending</option>
+              <option value="size-desc">Size descending</option>
+              <option value="modified-desc">Newest first</option>
+              <option value="modified-asc">Oldest first</option>
+            </select></label
+          >
+        </div>
+        <div id="selection-toolbar" class="selection-toolbar">
+          <label class="check-target"
+            ><input id="select-all" type="checkbox" />Select visible
+            files</label
+          ><button id="download-zip" class="button" type="button" disabled>
+            <span data-icon="archive"></span>Download ZIP (0)
+          </button>
+        </div>
+        <div
+          id="listing-status"
+          class="inline-status"
+          role="status"
+          hidden
+        ></div>
+        <button id="retry-files" class="button" type="button" hidden>
+          Retry
+        </button>
+        <div id="file-table" class="table-wrap">
+          <table role="table">
+            <caption class="sr-only">
+              Files in the current shared folder
+            </caption>
+            <colgroup>
+              <col class="select-col" />
+              <col />
+              <col class="size-col" />
+              <col class="date-col" />
+              <col class="actions-col" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">Select</th>
+                <th scope="col">Name</th>
+                <th scope="col">Size</th>
+                <th scope="col">Modified</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="file-list"></tbody>
+          </table>
+          <div id="empty-state" class="empty-state" hidden>
+            <span data-icon="folder"></span>
+            <p id="empty-message">This folder is empty</p>
+            <button id="clear-filter" class="button" type="button" hidden>
+              Clear search
+            </button>
+          </div>
+        </div>
+      </section>
+      <section
+        id="clipboard-panel"
+        class="panel clipboard-panel"
+        aria-labelledby="clipboard-title"
+      >
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Across your open pages</p>
+            <h2 id="clipboard-title">Clipboard &amp; text</h2>
+          </div>
+          <span class="heading-icon" data-icon="zap"></span>
+        </div>
+        <p id="clipboard-help" class="helper-text">
+          Paste or type to share between browsers. Your system clipboard is
+          never read automatically.
+        </p>
+        <div class="editor-options">
+          <label class="check-target"
+            ><input
+              id="monospace-toggle"
+              type="checkbox"
+              checked
+            />Monospace</label
+          ><label class="check-target"
+            ><input id="wrap-toggle" type="checkbox" checked />Wrap lines</label
+          >
+        </div>
+        <label class="sr-only" for="shared-text">Shared text</label
+        ><textarea
+          id="shared-text"
+          rows="9"
+          placeholder="Paste or type text here…"
+          disabled
+          spellcheck="false"
+        ></textarea>
+        <div class="textarea-meta">
+          <span id="character-count">0 bytes</span
+          ><span id="text-statistics">0 Characters · 0 lines</span>
+        </div>
+        <p id="text-limit" class="helper-text">Text in memory</p>
+        <p id="sync-status" class="helper-text" role="status">
+          Waiting for connection
+        </p>
+        <div class="text-actions">
+          <button id="copy-shared" class="button primary" type="button">
+            <span data-icon="copy"></span>Copy text</button
+          ><button id="sync-text" class="button" type="button" disabled>
+            Sync now</button
+          ><button id="submit-text" class="button primary" type="button" hidden>
+            Submit text</button
+          ><button id="clear-text" class="button" type="button" disabled>
+            Clear</button
+          ><button id="send-draft" class="button" type="button" hidden>
+            Send preserved draft
+          </button>
+        </div>
+        <div id="shared-image" class="shared-image" hidden>
+          <div class="section-heading">
+            <h3>Latest image</h3>
+            <span id="shared-image-meta" class="muted"></span>
+          </div>
+          <button
+            id="view-shared-image"
+            type="button"
+            aria-label="Preview shared image"
+          >
+            <img id="shared-image-preview" alt="Latest shared image" />
+          </button>
+          <p id="image-inline-help" class="helper-text"></p>
+          <div class="toolbar">
+            <button id="copy-shared-image" class="button" type="button">
+              Copy image</button
+            ><a id="download-shared-image" class="button download-link"
+              >Download original</a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+    <aside
+      id="transfer-queue"
+      class="transfer-queue"
+      aria-label="Transfers"
+      hidden
+    >
+      <div class="queue-heading">
+        <strong id="queue-title">Transfers</strong
+        ><button
+          id="toggle-queue"
+          class="button icon-button"
+          type="button"
+          aria-label="Collapse transfers"
+          aria-expanded="true"
+        >
+          <span data-icon="chevron"></span></button
+        ><button
+          id="clear-transfers"
+          class="button icon-button"
+          type="button"
+          aria-label="Clear completed transfers"
+        >
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <div id="upload-list" class="upload-list"></div>
+    </aside>
+    <dialog id="folder-dialog" aria-labelledby="folder-title">
+      <form id="folder-form">
+        <div class="dialog-heading">
+          <h2 id="folder-title">New folder</h2>
+          <button
+            class="button icon-button"
+            type="button"
+            id="cancel-folder"
+            aria-label="Close new folder"
+          >
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <label for="folder-name">Folder name</label
+        ><input
+          id="folder-name"
+          name="name"
+          maxlength="255"
+          autocomplete="off"
+          required
+        />
+        <p id="folder-error" class="field-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button class="button primary" type="submit">Create</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="image-dialog" class="wide-dialog" aria-labelledby="image-title">
+      <div class="dialog-body">
+        <div class="dialog-heading">
+          <h2 id="image-title">Image preview</h2>
+          <button
+            id="close-image"
+            class="button icon-button"
+            type="button"
+            aria-label="Close image preview"
+          >
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <p id="image-preview-meta" class="helper-text"></p>
+        <p id="image-preview-help" class="inline-status">
+          Right-click or long-press the image to copy or save it.
+        </p>
+        <img id="image-preview" alt="Shared image preview" />
+        <div class="dialog-actions">
+          <a id="image-download" class="button primary download-link"
+            >Download original</a
+          >
         </div>
       </div>
-
-      <nav id="breadcrumbs" class="breadcrumbs" aria-label="Current path"></nav>
-      <div id="selection-toolbar" class="selection-toolbar">
-        <label><input id="select-all" type="checkbox"> Select files</label>
-        <button id="download-zip" class="button secondary" type="button" disabled>Download ZIP (0)</button>
+    </dialog>
+    <dialog
+      id="text-dialog"
+      class="wide-dialog"
+      aria-labelledby="text-preview-title"
+    >
+      <div class="dialog-body">
+        <div class="dialog-heading">
+          <h2 id="text-preview-title">Text preview</h2>
+          <button
+            class="button icon-button"
+            type="button"
+            data-close="text-dialog"
+            aria-label="Close text preview"
+          >
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <p id="text-preview-status" class="helper-text" role="status"></p>
+        <pre id="text-preview-content" tabindex="0"></pre>
+        <div class="toolbar">
+          <button id="copy-preview" class="button" type="button">
+            Copy file text</button
+          ><button
+            id="wrap-preview"
+            class="button"
+            type="button"
+            aria-pressed="false"
+          >
+            Wrap lines</button
+          ><a id="text-preview-download" class="button primary download-link"
+            >Download original</a
+          >
+        </div>
       </div>
-
-      <div id="drop-zone" class="drop-zone">
-        <span>Drop files here to upload</span>
-        <small id="upload-help">Existing files will not be overwritten</small>
+    </dialog>
+    <dialog id="clear-dialog" aria-labelledby="clear-title">
+      <div class="dialog-body">
+        <div class="dialog-heading">
+          <h2 id="clear-title">Clear text?</h2>
+          <button
+            class="button icon-button"
+            type="button"
+            data-close="clear-dialog"
+            aria-label="Close clear text"
+          >
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <p id="clear-explanation"></p>
+        <div class="dialog-actions">
+          <button class="button" data-close="clear-dialog" type="button">
+            Keep text</button
+          ><button id="confirm-clear" class="button danger" type="button">
+            Clear text
+          </button>
+        </div>
       </div>
-      <div id="upload-list" class="upload-list" aria-live="polite"></div>
-
-      <div id="file-table" class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Name</th><th>Size</th><th>Modified</th><th><span class="sr-only">Actions</span></th></tr>
-          </thead>
-          <tbody id="file-list"></tbody>
-        </table>
-        <div id="empty-state" class="empty-state" hidden>This folder is empty</div>
+    </dialog>
+    <dialog id="share-dialog" aria-labelledby="share-title">
+      <div class="dialog-body">
+        <div class="dialog-heading">
+          <h2 id="share-title">Share connection</h2>
+          <button
+            class="button icon-button"
+            type="button"
+            data-close="share-dialog"
+            aria-label="Close sharing"
+          >
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <p id="share-guidance" class="helper-text"></p>
+        <label for="share-link">Complete terminal link</label
+        ><input
+          id="share-link"
+          type="url"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Paste the terminal link"
+        />
+        <p class="inline-status">
+          QR codes and commands may contain access secrets. Anyone holding the
+          link may access this share. Basic Auth still requires credentials on
+          each device.
+        </p>
+        <div id="curl-controls" hidden>
+          <label for="curl-auth">Authentication template</label
+          ><select id="curl-auth">
+            <option value="unknown">Choose authentication</option>
+            <option value="none">None</option>
+            <option value="token">Token</option>
+            <option value="pin">PIN</option>
+            <option value="basic">Basic</option>
+            <option value="basic-token">Basic + Token</option>
+            <option value="basic-pin">Basic + PIN</option>
+          </select>
+        </div>
+        <button id="generate-share" class="button primary" type="button">
+          Generate QR</button
+        ><canvas
+          id="share-qr"
+          aria-label="Connection QR code"
+          role="img"
+          hidden
+        ></canvas
+        ><label id="curl-output-label" for="curl-output" hidden
+          >POSIX shell command</label
+        ><textarea
+          id="curl-output"
+          class="code-output"
+          rows="5"
+          readonly
+          hidden
+        ></textarea>
+        <p id="share-result-status" class="helper-text" role="status"></p>
+        <button id="copy-command" class="button" type="button" hidden>
+          Copy command
+        </button>
       </div>
-    </section>
-  </main>
-
-  <dialog id="folder-dialog">
-    <form id="folder-form" method="dialog">
-      <h2>New folder</h2>
-      <label for="folder-name">Folder name</label>
-      <input id="folder-name" name="name" maxlength="255" autocomplete="off" required>
-      <div class="dialog-actions">
-        <button class="button secondary" value="cancel" type="button" id="cancel-folder">Cancel</button>
-        <button class="button primary" value="create" type="submit">Create</button>
+    </dialog>
+    <dialog id="help-dialog" aria-labelledby="help-title">
+      <div class="dialog-body">
+        <div class="dialog-heading">
+          <h2 id="help-title">Keyboard shortcuts</h2>
+          <button
+            class="button icon-button"
+            type="button"
+            data-close="help-dialog"
+            aria-label="Close keyboard shortcuts"
+          >
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <dl class="shortcut-list">
+          <dt>Ctrl / Cmd + V</dt>
+          <dd>
+            Paste files or images outside other input fields. Paste text into
+            the shared editor.
+          </dd>
+          <dt>Ctrl / Cmd + S or Enter</dt>
+          <dd>
+            Sync the active shared editor. In drop-only mode, explicitly submit
+            the draft.
+          </dd>
+          <dt>?</dt>
+          <dd>Open this help outside input fields.</dd>
+          <dt>Esc</dt>
+          <dd>
+            Close the current dialog or menu. Drafts and transfers stay intact.
+          </dd>
+        </dl>
       </div>
-    </form>
-  </dialog>
-
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <div id="page-drop-overlay" class="page-drop-overlay" hidden>Drop files anywhere to upload</div>
-  <dialog id="image-dialog">
-    <div class="image-dialog-content">
-      <h2 id="image-title">Image preview</h2>
-      <p>Right-click or long-press the image to copy or save it.</p>
-      <img id="image-preview" alt="Shared image preview">
-      <div class="dialog-actions">
-        <a id="image-download" class="button secondary download-link">Download</a>
-        <button id="close-image" class="button primary" type="button">Close</button>
+    </dialog>
+    <dialog id="manual-copy-dialog" aria-labelledby="manual-copy-title">
+      <div class="dialog-body">
+        <div class="dialog-heading">
+          <h2 id="manual-copy-title">Copy manually</h2>
+          <button
+            class="button icon-button"
+            type="button"
+            data-close="manual-copy-dialog"
+            aria-label="Close manual copy"
+          >
+            <span data-icon="close"></span>
+          </button>
+        </div>
+        <p>Select the text below and use your device's Copy action.</p>
+        <label class="sr-only" for="manual-copy-text">Text to copy</label
+        ><textarea id="manual-copy-text" rows="8" readonly></textarea>
       </div>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <div id="page-drop-overlay" class="page-drop-overlay" hidden>
+      <span data-icon="upload"></span
+      ><strong>Release to upload to the current folder</strong>
     </div>
-  </dialog>
-</body>
+  </body>
 </html>

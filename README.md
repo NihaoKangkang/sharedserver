@@ -39,6 +39,15 @@ The short demo uses a desktop and a mobile-sized Chromium session, including ord
 - Downloads support **HTTP Range**, including resume and HEAD requests. Uploads stream in chunks and never silently overwrite a file. Add `--rename-on-conflict` to keep both copies as `name (1).ext`.
 - Text is limited to **2 MiB of UTF-8** by default. Full/readonly text is kept in memory; drop-only submissions are saved as unique `text_*.txt` files. Images are files, not large WebSocket messages.
 
+## Workspace UI
+
+Version 0.4.0 adds an offline-first workspace for desktop and mobile browsers. Upgrade with `python -m pip install --upgrade sharedserver` or `pipx upgrade sharedserver`.
+
+- Desktop: file explorer and shared text side by side; tablet: workspace tabs; phone: file cards with an always-visible download button.
+- System/light/dark themes, current-folder search and sorting, safe plain-text/image previews, and a cancellable transfer queue.
+- Mobile developer actions live under More. The header tools menu contains QR sharing and keyboard help; text supports explicit sync shortcuts, wrapping and a manual-copy fallback.
+- Protected QR links must be pasted from the terminal. curl commands use explicit authentication templates; browser sessions and passwords are never exported. Audio/video playback and folder uploads remain outside this iteration.
+
 ## Access modes
 
 | Mode | Browse / download / ZIP | Upload files | Read shared text/images | Submit text/images |
@@ -139,6 +148,6 @@ python -m build
 python -m twine check dist/*
 ```
 
-CI tests Linux/macOS/Windows on Python 3.10–3.14, packaged assets, and two Chromium suites. Browser reproduction: `npm install --no-save playwright`, `npx playwright install chromium`, then `SHARED_PYTHON=.venv/bin/python node scripts/browser_vnext.cjs` (shell environment syntax varies). `LAN_SMOKE=1` additionally tests a real LAN HTTP address. [Release runbook](https://github.com/NihaoKangkang/sharedserver/blob/main/docs/releasing.md).
+CI tests Linux/macOS/Windows on Python 3.10–3.14, packaged assets, and four Chromium suites. Browser reproduction: `npm install --no-save playwright jsqr@1.4.0`, `npx playwright install chromium`, then `SHARED_PYTHON=.venv/bin/python node scripts/browser_vnext.cjs` (shell environment syntax varies). `LAN_SMOKE=1` additionally tests a real LAN HTTP address. Run `SHARED_PYTHON=.venv/bin/python node scripts/browser_ui.cjs` for the responsive/interaction matrix and independent QR decoding. Run `SHARED_PYTHON=.venv/bin/python node scripts/browser_ui_audit.cjs` for navigation, focus, form, and accessible upload regressions. [Release runbook](https://github.com/NihaoKangkang/sharedserver/blob/main/docs/releasing.md).
 
 [MIT license](https://github.com/NihaoKangkang/sharedserver/blob/main/LICENSE) · [Report an issue](https://github.com/NihaoKangkang/sharedserver/issues)
